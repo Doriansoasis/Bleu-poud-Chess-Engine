@@ -74,9 +74,16 @@ Board::~Board()
 
 void Board::cycleTurn()
 {
-	if (turn_order == white)
-		turn_order = black;
-	else turn_order = white;
+	switch (turn_order)
+	{
+		case white:
+			turn_order = black;
+			break;
+
+		case black:
+			turn_order = white;
+			break;
+	}
 }
 
 int Board::getPieceValue(piece_type type)
@@ -99,26 +106,30 @@ int Board::getPieceValue(piece_type type)
 
 void Board::ProcessPlayerMove() {
 	char oldxchar, newxchar;
-	int oldx, oldy, newx, newy;
-	cout << endl << endl << "Please choose a legal move, I can't stop you from cheating or breaking everything:(";
-	cout << endl << "Enter x coordinate for chosen piece (A to F): ";
-	cin >> oldxchar;
+	int oldx, oldy, newx, newy = -1;
+	cout << endl << endl << "Please choose a legal move, enter 0 as last value to retry";
 
-	oldx = charToInt(oldxchar);
+	while (newy == -1)
+	{
+		cout << endl << "Enter x coordinate for chosen piece (A to F): ";
+		cin >> oldxchar;
 
-	cout << "Enter y coordinate for chosen piece : (1-8): ";
-	cin >> oldy;
+		oldx = charToInt(oldxchar);
 
-	oldy--;
+		cout << "Enter y coordinate for chosen piece : (1-8): ";
+		cin >> oldy;
 
-	cout << "Enter x coordinate for destination (A-H): ";
-	cin >> newxchar;
+		oldy--;
 
-	newx = charToInt(newxchar);
+		cout << "Enter x coordinate for destination (A-H): ";
+		cin >> newxchar;
 
-	cout << "Enter y coordinate for destination (1-8): ";
-	cin >> newy;
-	newy--;
+		newx = charToInt(newxchar);
+
+		cout << "Enter y coordinate for destination (1-8): ";
+		cin >> newy;
+		newy--;
+	}
 	
 	if (currentposition[oldx][oldy]->gettype() == king && oldy-newy == 0)
 	{
@@ -137,6 +148,10 @@ void Board::ProcessPlayerMove() {
 
 	else if (currentposition[newx][newy] != nullptr)
 	{
+		if (currentposition[oldx][oldy]->getcolor() == white)
+			whitescore += getPieceValue(currentposition[newx][newy]->gettype());
+
+		else blackscore += getPieceValue(currentposition[newx][newy]->gettype());
 		delete currentposition[newx][newy];
 	}
 	
@@ -187,9 +202,16 @@ int Board::developmentIncentive(piece_color turn, Move move)
 {
 	int incentive = 0;
 
+	//incentive to trade when up material
+	if (turn == white && whitescore > blackscore && move.getscoredif() >= 4)
+		incentive += 2;
+	else if (turn == black && blackscore > whitescore && move.getscoredif() >= 4)
+		incentive += 2;
+
 	//incentive to control center four squares
 	if ((move.getNewx() == 3 || move.getNewx() == 4) && (move.getNewY() == 3 || move.getNewY() == 4))
-		incentive =incentive + 2;
+		incentive += 2;
+
 
 	//incentive to move forward and not back
 	if ((turn == white && move.getNewY() > move.getOldy()) || (turn == black && move.getNewY() < move.getOldy()))
@@ -203,75 +225,95 @@ int Board::developmentIncentive(piece_color turn, Move move)
 	if ((turn == white && move.getOldy() == 0) || (turn == black && move.getOldy() == 7))
 		incentive++;
 
+	if (incentive > 2000)
+		int i = 0;
+
 	return incentive;
 }
 
-int Board::CalculateMoveValue(piece_color turn, Piece* position[8][8], int iterationsleft) {
-	vector<Move> PossibleMoves = GenerateMovelist(turn, position);
+int Board::CalculateMoveValue(piece_color turn, Piece* position[8][8], int iterationsleft) 
+{
+	if (iterationsleft == 0)
+		return 0;
 
-	for (Move &move : PossibleMoves)
-	{
+    vector<Move> PossibleMoves = GenerateMovelist(turn, position);
+
+	int bestValue = -1000;
+
+	for(auto& move: PossibleMoves)
+    {
+		int scoreSim = 0;
+
+		if (position[move.getNewx()][move.getNewY()] != nullptr)
+        {
+			scoreSim = getPieceValue(position[move.getNewx()][move.getNewY()]->gettype());
+
+			switch (turn)
+			{
+				case white:
+					whitescore += scoreSim;
+					break;
+				case black:
+					blackscore += scoreSim;
+					break;
+			}
+        }
+
 		move.addToScoreDif(developmentIncentive(turn, move));
-		
-		if ((move.getNewY() == 0 || move.getNewY() == 7) && position[move.getOldx()][move.getOldy()]->gettype() == pawn)
+
+        if ((move.getNewY() == 0 || move.getNewY() == 7) && position[move.getOldx()][move.getOldy()]->gettype() == pawn)
 		{
 			move.addToScoreDif(32);
-		}	
-	}
+        }
 
-	if (iterationsleft > 0)
-	{
-		for(auto& move: PossibleMoves)
+		Piece* BufferPiece = position[move.getNewx()][move.getNewY()];
+
+		position[move.getNewx()][move.getNewY()] = position[move.getOldx()][move.getOldy()];
+		position[move.getOldx()][move.getOldy()] = nullptr;
+
+        if (move.getscoredif() < 350)
+        {
+            if (turn == white)
+                move.addToScoreDif(-CalculateMoveValue(black, position, iterationsleft - 1));
+            else
+                move.addToScoreDif(-CalculateMoveValue(white, position, iterationsleft - 1));
+        }
+
+		switch (turn)
 		{
-			Piece* BufferPiece = position[move.getNewx()][move.getNewY()];
-
-			position[move.getNewx()][move.getNewY()] = position[move.getOldx()][move.getOldy()];
-			position[move.getOldx()][move.getOldy()] = nullptr;
-			
-
-			if (move.getscoredif() < 350)
-			{
-				if (turn == white)
-					move.addToScoreDif(-CalculateMoveValue(black, position, iterationsleft - 1));
-				else
-					move.addToScoreDif(-CalculateMoveValue(white, position, iterationsleft - 1));
-			}
-
-
-			position[move.getOldx()][move.getOldy()] = position[move.getNewx()][move.getNewY()];
-			position[move.getNewx()][move.getNewY()] = BufferPiece;
+			case white:
+				whitescore -= scoreSim;
+				break;
+			case black:
+				blackscore -= scoreSim;
+				break;
 		}
 
-		int bestValue = PossibleMoves[0].getscoredif();
+        position[move.getOldx()][move.getOldy()] = position[move.getNewx()][move.getNewY()];
+        position[move.getNewx()][move.getNewY()] = BufferPiece;	
 
-		for (auto& move: PossibleMoves)
-		{
-			bestValue = (bestValue < move.getscoredif()) ? move.getscoredif() : bestValue;
-		}
+		bestValue = (bestValue < move.getscoredif()) ? move.getscoredif() : bestValue;
+    }
 
-		if (iterationsleft == maxIterations)
-		{
-			srand((unsigned)time(0));
+    if (iterationsleft == maxIterations)
+    {
+        srand((unsigned)time(0));
 
-			vector<Move> bestMoves;
-			for (int i = 0; i < PossibleMoves.size(); i++)
-			{
-				if (PossibleMoves[i].getscoredif() == bestValue)
-					bestMoves.push_back(PossibleMoves[i]);
-			}
+        vector<Move> bestMoves;
+        for (int i = 0; i < PossibleMoves.size(); i++)
+        {
+            if (PossibleMoves[i].getscoredif() == bestValue)
+                bestMoves.push_back(PossibleMoves[i]);
+        }
 
-			cout << "There were " << bestMoves.size() << " good moves" << endl;
+        cout << "There were " << bestMoves.size() << " good moves" << endl;
 
-			int random = rand() % bestMoves.size();
+        int random = rand() % bestMoves.size();
 
-			PlayComputerMove(bestMoves[random]);
-		}
+        PlayComputerMove(bestMoves[random]);
+    }
 
-		return bestValue;
-	}
-
-	return 0;
-
+    return bestValue;
 }
 
 void Board::PlayComputerMove(Move mover)
@@ -306,8 +348,17 @@ void Board::PlayComputerMove(Move mover)
 		}
 	}
 
+
+
 	if (currentposition[mover.getNewx()][mover.getNewY()] != nullptr)
+	{
+		if (currentposition[mover.getOldx()][mover.getOldy()]->getcolor() == white)
+			whitescore += getPieceValue(currentposition[mover.getNewx()][mover.getNewY()]->gettype());
+
+		else blackscore += getPieceValue(currentposition[mover.getNewx()][mover.getNewY()]->gettype());
+		
 		delete currentposition[mover.getNewx()][mover.getNewY()];
+	}
 
 	currentposition[mover.getNewx()][mover.getNewY()] = currentposition[mover.getOldx()][mover.getOldy()];
 	currentposition[mover.getOldx()][mover.getOldy()] = nullptr;

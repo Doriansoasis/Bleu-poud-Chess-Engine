@@ -23,10 +23,13 @@ private:
 	bool canCastleright = true;
 	bool isChecked = false;
 
+	int whitescore = 0;
+	int blackscore = 0;
+
 	vector<Piece*> blackTeam;
 	vector<Piece*> whiteTeam;
 
-	const int maxIterations = 4;
+	const int maxIterations = 5;
 
 	Piece* currentposition[8][8];
 
