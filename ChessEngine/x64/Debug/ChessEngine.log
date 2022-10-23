@@ -1,3 +1,3 @@
 ﻿  Board.cpp
-D:\Code\C++\ChessEngine\ChessEngine\Board.cpp(98): warning C4715: 'Board::getPieceValue': not all control paths return a value
-  ChessEngine.vcxproj -> D:\Code\C++\ChessEngine\x64\Debug\ChessEngine.exe
+D:\Code\C++\Bleu-poud-Chess-Engine\ChessEngine\Board.cpp(98): warning C4715: 'Board::getPieceValue': not all control paths return a value
+  ChessEngine.vcxproj -> D:\Code\C++\Bleu-poud-Chess-Engine\x64\Debug\ChessEngine.exe

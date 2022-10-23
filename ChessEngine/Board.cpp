@@ -199,7 +199,7 @@ int Board::developmentIncentive(piece_color turn, Move move)
 	else if (move.getNewY() != move.getOldy())
 		incentive--;
 
-	//incentive to develop backline, except horses
+	//incentive to develop backline
 	if ((turn == white && move.getOldy() == 0) || (turn == black && move.getOldy() == 7))
 		incentive++;
 
@@ -213,38 +213,40 @@ int Board::CalculateMoveValue(piece_color turn, Piece* position[8][8], int itera
 	{
 		move.addToScoreDif(developmentIncentive(turn, move));
 		
-			if ((move.getNewY() == 0 || move.getNewY() == 7) && position[move.getOldx()][move.getOldy()]->gettype() == pawn)
-				move.addToScoreDif(32);
+		if ((move.getNewY() == 0 || move.getNewY() == 7) && position[move.getOldx()][move.getOldy()]->gettype() == pawn)
+		{
+			move.addToScoreDif(32);
+		}	
 	}
 
 	if (iterationsleft > 0)
 	{
-		parallel_for_each(PossibleMoves.begin(), PossibleMoves.end(), [&](Move& move)
+		for(auto& move: PossibleMoves)
 		{
-			Piece* newposition[8][8];
+			Piece* BufferPiece = position[move.getNewx()][move.getNewY()];
 
-			for (int i = 0; i < 8; i++)
-				for (int j = 0; j < 8; j++)
-					newposition[i][j] = position[i][j];
-
-			newposition[move.getNewx()][move.getNewY()] = newposition[move.getOldx()][move.getOldy()];
-			newposition[move.getOldx()][move.getOldy()] = nullptr;
+			position[move.getNewx()][move.getNewY()] = position[move.getOldx()][move.getOldy()];
+			position[move.getOldx()][move.getOldy()] = nullptr;
 			
 
 			if (move.getscoredif() < 350)
 			{
 				if (turn == white)
-					move.addToScoreDif(-CalculateMoveValue(black, newposition, iterationsleft - 1));
+					move.addToScoreDif(-CalculateMoveValue(black, position, iterationsleft - 1));
 				else
-					move.addToScoreDif(-CalculateMoveValue(white, newposition, iterationsleft - 1));
+					move.addToScoreDif(-CalculateMoveValue(white, position, iterationsleft - 1));
 			}
-		});
+
+
+			position[move.getOldx()][move.getOldy()] = position[move.getNewx()][move.getNewY()];
+			position[move.getNewx()][move.getNewY()] = BufferPiece;
+		}
 
 		int bestValue = PossibleMoves[0].getscoredif();
 
-		for (int i = 1; i < PossibleMoves.size(); i++)
+		for (auto& move: PossibleMoves)
 		{
-			bestValue = (bestValue < PossibleMoves[i].getscoredif()) ? PossibleMoves[i].getscoredif() : bestValue;
+			bestValue = (bestValue < move.getscoredif()) ? move.getscoredif() : bestValue;
 		}
 
 		if (iterationsleft == maxIterations)
@@ -501,7 +503,7 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 
 	piece_color turn = position[x][y]->getcolor();
 
-	if (turn == white)
+	if (turn == white && y != 7)
 	{
 		if (position[x][y + 1] == nullptr)
 		{
@@ -523,6 +525,8 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 				if (position[x - 1][y + 1]->getcolor() != turn)
 				{
 					Move legalmove(x, y, x-1, y + 1, getPieceValue(position[x - 1][y + 1]->gettype()));
+					if (y + 1 == 7)
+						legalmove.addToScoreDif(32);
 					Movelist.push_back(legalmove);
 				}
 		}
@@ -533,12 +537,14 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 				if (position[x + 1][y + 1]->getcolor() != turn)
 				{
 					Move legalmove(x, y, x + 1, y + 1, getPieceValue(position[x + 1][y + 1]->gettype()));
+					if (y + 1 == 7)
+						legalmove.addToScoreDif(32);
 					Movelist.push_back(legalmove);
 				}
 		}
 	}
 
-	else if (turn == black)
+	else if (turn == black && y != 0)
 	{
 		if (position[x][y - 1] == nullptr)
 		{
@@ -560,6 +566,8 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 				if (position[x - 1][y - 1]->getcolor() != turn)
 				{
 					Move legalmove(x, y, x - 1, y - 1, getPieceValue(position[x - 1][y -1]->gettype()));
+					if (y - 1 == 0)
+						legalmove.addToScoreDif(32);
 					Movelist.push_back(legalmove);
 				}
 		}
@@ -570,6 +578,8 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 				if (position[x + 1][y - 1]->getcolor() != turn)
 				{
 					Move legalmove(x, y, x + 1, y - 1, getPieceValue(position[x + 1][y - 1]->gettype()));
+					if (y - 1 == 0)
+						legalmove.addToScoreDif(32);
 					Movelist.push_back(legalmove);
 				}
 		}
@@ -579,7 +589,6 @@ void Board::getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 void Board::getRookMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist) {
 
 	piece_color turn = position[x][y]->getcolor();
-
 	
 	for (int testx = x-1; testx >= 0; testx--)
 	{
@@ -980,13 +989,13 @@ void Board::getKingMoves(int x, int y, Piece* position[8][8], vector<Move>& Move
 		if (canCastleleft && position[3][y] == nullptr && position[2][y] == nullptr && position[1][y] == nullptr && position[0][y] != nullptr)
 			if (position[0][y]->gettype() == rook && position[0][y]->getcolor() == turn)
 			{
-				Move legalmove(x, y, 2, y, 7);
+				Move legalmove(x, y, 2, y, 4);
 				Movelist.push_back(legalmove);
 			}
 		if (canCastleright && position[5][y] == nullptr && position[6][y] == nullptr && position[7][y] != nullptr)
 			if (position[7][y]->gettype() == rook && position[7][y]->getcolor() == turn)
 			{
-				Move legalmove(x, y, 6, y, 7);
+				Move legalmove(x, y, 6, y, 4);
 				Movelist.push_back(legalmove);
 			}
 	}
