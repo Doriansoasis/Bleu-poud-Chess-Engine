@@ -26,9 +26,6 @@ private:
 	int whitescore = 0;
 	int blackscore = 0;
 
-	vector<Piece*> blackTeam;
-	vector<Piece*> whiteTeam;
-
 	const int maxIterations = 5;
 
 	Piece* currentposition[8][8];
@@ -36,26 +33,25 @@ private:
 public:	
 	Board();
 	~Board();
-	void cycleTurn();
-
+	
 	int CalculateMoveValue(piece_color turn, Piece* position[8][8], int iterationsleft);
-
-	vector<Move> GenerateMovelist(piece_color turn, Piece* position[8][8]);
+	inline vector<Move> GenerateMovelist(piece_color turn, Piece* position[8][8]);
+	inline int developmentIncentive(piece_color turn, Move move);
 
 	void ProcessPlayerMove();
 	void ProcessComputerMove();
-
 	void PlayComputerMove(Move mover);
-
 	void ShowBoardState();
-	int getPieceValue(piece_type type);
+	void cycleTurn();
+	
 	void getPawnMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
 	void getRookMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
 	void getKnightMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
 	void getBishopMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
 	void getQueenMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
 	void getKingMoves(int x, int y, Piece* position[8][8], vector<Move>& Movelist);
-	int developmentIncentive(piece_color turn, Move move);
+	inline int getPieceValue(piece_type type);
+
 
 	int charToInt(char y);
 	char intToChar(int x);
